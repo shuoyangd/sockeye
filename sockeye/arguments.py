@@ -503,8 +503,8 @@ def add_training_args(params):
                               help="Dropout probability for ConvolutionalEmbeddingEncoder. Default: %(default)s.")
 
     train_params.add_argument('--optimizer',
-                              default='adam',
-                              choices=['adam', 'sgd', 'rmsprop'],
+                              default=C.OPTIMIZER_ADAM,
+                              choices=C.OPTIMIZERS,
                               help='SGD update rule. Default: %(default)s.')
     train_params.add_argument('--weight-init',
                               type=str,
@@ -533,6 +533,11 @@ def add_training_args(params):
                               default=1.0,
                               help='Clip absolute gradients values greater than this value. '
                                    'Set to negative to disable. Default: %(default)s.')
+    train_params.add_argument('--gradient-noise',
+                              type=multiple_values(num_values=2, greater_or_equal=0., data_type=float),
+                              default=(1.0, 0.55),
+                              help="Values eta:gamma for gradient noise variance ('adamplus' optimizer only). Default:"
+                                   " %(default)s.")
 
     train_params.add_argument('--learning-rate-scheduler-type',
                               default=C.LR_SCHEDULER_PLATEAU_REDUCE,

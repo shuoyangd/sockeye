@@ -33,6 +33,7 @@ from . import constants as C
 from . import data_io
 from . import loss
 from . import model
+from . import optimizers
 from . import utils
 
 logger = logging.getLogger(__name__)
