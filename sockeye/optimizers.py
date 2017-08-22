@@ -17,10 +17,10 @@ Extensions to MXNet optimizers
 
 import math
 
-from mxnet.ndarray import NDArray, clip
+from mxnet.ndarray import NDArray, clip, lesser
 from mxnet.ndarray import adam_update
 from mxnet.optimizer import Optimizer, Adam
-from mxnet.random import normal
+from mxnet.random import normal, uniform
 
 
 # convenience wrapper for Optimizer.Register
@@ -40,6 +40,7 @@ class AdamPlus(Adam):
     :param epsilon: Small value to avoid division by 0.
     :param noise_eta: Numerator for noise variance.
     :param noise_gamma: Denominator exponent for noise variance.
+    :param noise_prob: Probability of adding noise to any weight.
     """
 
     def __init__(self,
@@ -49,6 +50,7 @@ class AdamPlus(Adam):
                  epsilon: float = 1e-8,
                  noise_eta: float = 1.,
                  noise_gamma: float = 0.55,
+                 noise_prob: float = 1.,
                  **kwargs):
         # Vanilla Adam params
         super().__init__(learning_rate=0.001,
@@ -59,6 +61,7 @@ class AdamPlus(Adam):
         # Extension params
         self.noise_eta = noise_eta
         self.noise_gamma = noise_gamma
+        self.noise_prob = noise_prob
 
     def update(self,
                index: int,
@@ -91,9 +94,12 @@ class AdamPlus(Adam):
             grad = clip(grad, -self.clip_gradient, self.clip_gradient)   # pylint: disable=E1130
 
         # Ext: gradient noise
-        if self.noise_eta > 0:
+        if self.noise_eta > 0 and self.noise_prob > 0:
             var_t = self.noise_eta / ((1. + t)**self.noise_gamma)
-            grad = grad + normal(0., var_t, grad.shape, grad.context)
+            noise = normal(loc=0., scale=math.sqrt(var_t), shape=grad.shape, ctx=grad.context)
+            if self.noise_prob < 1:
+                noise = noise * lesser(uniform(low=0, high=1, shape=grad.shape, ctx=grad.context), self.noise_prob)
+            grad = grad + noise
 
         mean, var = state
         kwargs = {"beta1": self.beta1,
