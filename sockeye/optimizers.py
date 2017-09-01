@@ -17,7 +17,7 @@ Extensions to MXNet optimizers
 
 import math
 
-from mxnet.ndarray import NDArray, clip, lesser
+from mxnet.ndarray import NDArray, clip, lesser, sqrt, zeros
 from mxnet.ndarray import adam_update
 from mxnet.optimizer import Optimizer, Adam
 from mxnet.random import normal, uniform
@@ -53,11 +53,7 @@ class AdamPlus(Adam):
                  noise_prob: float = 1.,
                  **kwargs):
         # Vanilla Adam params
-        super().__init__(learning_rate=0.001,
-                         beta1=0.9,
-                         beta2=0.999,
-                         epsilon=1e-8,
-                         **kwargs)
+        super().__init__(learning_rate, beta1, beta2, epsilon, **kwargs)
         # Extension params
         self.noise_eta = noise_eta
         self.noise_gamma = noise_gamma
@@ -81,7 +77,6 @@ class AdamPlus(Adam):
         assert isinstance(weight, NDArray)
         assert isinstance(grad, NDArray)
         lr = self._get_lr(index)
-        wd = self._get_wd(index)
         self._update_count(index)
 
         t = self._index_update_count[index]
@@ -89,21 +84,24 @@ class AdamPlus(Adam):
         coef2 = 1. - self.beta2**t
         lr *= math.sqrt(coef2) / coef1
 
-        # Ext: clip here (outside adam_update) so we can add operations between clipping and update
-        if self.clip_gradient:
-            grad = clip(grad, -self.clip_gradient, self.clip_gradient)   # pylint: disable=E1130
+        mean, var = state
 
         # Ext: gradient noise
-        if self.noise_eta > 0 and self.noise_prob > 0:
+        # eta/gamma > 0: original formula from paper
+        # eta/gamma < 0: use Adam update rule
+        if self.noise_eta > 0. and self.noise_gamma > 0.:
             var_t = self.noise_eta / ((1. + t)**self.noise_gamma)
             noise = normal(loc=0., scale=math.sqrt(var_t), shape=grad.shape, ctx=grad.context)
-            if self.noise_prob < 1:
-                noise = noise * lesser(uniform(low=0, high=1, shape=grad.shape, ctx=grad.context), self.noise_prob)
-            grad = grad + noise
+        else:
+            noise = normal(loc=0., scale=1., shape=grad.shape, ctx=grad.context)
+            noise *= lr * mean / (sqrt(var) + self.epsilon)
+        if self.noise_prob < 1.:
+            noise *= lesser(uniform(low=0., high=1., shape=grad.shape, ctx=grad.context), self.noise_prob)
+        grad += noise
 
-        mean, var = state
-        kwargs = {"beta1": self.beta1,
-                  "beta2": self.beta2,
-                  "epsilon": self.epsilon,
-                  "rescale_grad": self.rescale_grad}
-        adam_update(weight, grad, mean, var, out=weight, lr=lr, wd=wd, **kwargs)
+        adam_update(weight, grad, mean, var, out=weight, lr=lr)
+        # mean, var, and weight assignment lines are equivalent to calling adam_update() with NO wd, NO rescale_grad,
+        # and NO clip_gradient
+        #mean[:] = self.beta1 * mean + (1 - self.beta1) * grad
+        #var[:] = self.beta2 * var + (1 - self.beta2) * (grad**2)
+        #weight[:] = weight - lr * mean / (sqrt(var) + self.epsilon)

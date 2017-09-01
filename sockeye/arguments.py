@@ -535,7 +535,7 @@ def add_training_args(params):
                                    'Set to negative to disable. Default: %(default)s.')
     train_params.add_argument('--gradient-noise',
                               type=multiple_values(num_values=3, greater_or_equal=0., data_type=float),
-                              default=(1.0, 0.55, 1.0),
+                              default=(0.01, 0.55, 1.0),
                               help="Values eta:gamma:prob for gradient noise variance ('adamplus' optimizer only). Default:"
                                    " %(default)s.")
 
