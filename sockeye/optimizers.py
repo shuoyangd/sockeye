@@ -40,7 +40,6 @@ class AdamPlus(Adam):
     :param epsilon: Small value to avoid division by 0.
     :param noise_eta: Numerator for noise variance.
     :param noise_gamma: Denominator exponent for noise variance.
-    :param noise_prob: Probability of adding noise to any weight.
     """
 
     def __init__(self,
@@ -48,16 +47,14 @@ class AdamPlus(Adam):
                  beta1: float = 0.9,
                  beta2: float = 0.999,
                  epsilon: float = 1e-8,
-                 noise_eta: float = 1.,
+                 noise_eta: float = 0.01,
                  noise_gamma: float = 0.55,
-                 noise_prob: float = 1.,
                  **kwargs):
         # Vanilla Adam params
         super().__init__(learning_rate, beta1, beta2, epsilon, **kwargs)
         # Extension params
         self.noise_eta = noise_eta
         self.noise_gamma = noise_gamma
-        self.noise_prob = noise_prob
 
     def update(self,
                index: int,
@@ -87,16 +84,18 @@ class AdamPlus(Adam):
         mean, var = state
 
         # Ext: gradient noise
-        # eta/gamma > 0: original formula from paper
-        # eta/gamma < 0: use Adam update rule
-        if self.noise_eta > 0. and self.noise_gamma > 0.:
+        # eta/gamma -1: mean
+        # eta/gamma 0: sqrt(var)
+        # eta/gamma other: original formula from paper
+        if self.noise_eta == -1. or self.noise_gamma == -1.:
+            noise = normal(loc=0., scale=1., shape=grad.shape, ctx=grad.context)
+            noise *= mean
+        elif self.noise_eta == 0. or self.noise_gamma == 0.:
+            noise = normal(loc=0., scale=1., shape=grad.shape, ctx=grad.context)
+            noise *= sqrt(var)
+        else:
             var_t = self.noise_eta / ((1. + t)**self.noise_gamma)
             noise = normal(loc=0., scale=math.sqrt(var_t), shape=grad.shape, ctx=grad.context)
-        else:
-            noise = normal(loc=0., scale=1., shape=grad.shape, ctx=grad.context)
-            noise *= lr * mean / (sqrt(var) + self.epsilon)
-        if self.noise_prob < 1.:
-            noise *= lesser(uniform(low=0., high=1., shape=grad.shape, ctx=grad.context), self.noise_prob)
         grad += noise
 
         adam_update(weight, grad, mean, var, out=weight, lr=lr)

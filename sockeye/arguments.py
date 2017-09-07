@@ -534,9 +534,9 @@ def add_training_args(params):
                               help='Clip absolute gradients values greater than this value. '
                                    'Set to negative to disable. Default: %(default)s.')
     train_params.add_argument('--gradient-noise',
-                              type=multiple_values(num_values=3, greater_or_equal=0., data_type=float),
-                              default=(0.01, 0.55, 1.0),
-                              help="Values eta:gamma:prob for gradient noise variance ('adamplus' optimizer only). Default:"
+                              type=multiple_values(num_values=2, data_type=float),
+                              default=(0.01, 0.55),
+                              help="Values eta:gamma for gradient noise variance ('adamplus' optimizer only). -1:-1 for mean, 0:0 for var. Default:"
                                    " %(default)s.")
 
     train_params.add_argument('--learning-rate-scheduler-type',

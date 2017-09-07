@@ -381,9 +381,7 @@ def main():
         if clip_gradient is not None:
             optimizer_params["clip_gradient"] = clip_gradient
         if optimizer == C.OPTIMIZER_ADAMPLUS:
-            (optimizer_params["noise_eta"],
-             optimizer_params["noise_gamma"],
-             optimizer_params["noise_prob"]) = args.gradient_noise
+            optimizer_params["noise_eta"], optimizer_params["noise_gamma"] = args.gradient_noise
         if args.momentum is not None:
             optimizer_params["momentum"] = args.momentum
         if args.normalize_loss:
