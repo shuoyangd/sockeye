@@ -43,7 +43,7 @@ def get_decoder(config: Config,
     if isinstance(config, RecurrentDecoderConfig):
         return RecurrentDecoder(config=config, lexicon=lexicon, embed_weight=embed_weight, prefix=C.RNN_DECODER_PREFIX)
     elif isinstance(config, ConvolutionalDecoderConfig):
-        return ConvolutionalDecoder(config=config, prefix=C.CONVOLUTIONAL_DECODER_PREFIX)
+        return ConvolutionalDecoder(config=config, embed_weight=embed_weight, prefix=C.CONVOLUTIONAL_DECODER_PREFIX)
     elif isinstance(config, transformer.TransformerConfig):
         return TransformerDecoder(config=config, embed_weight=embed_weight, prefix=C.TRANSFORMER_DECODER_PREFIX)
     else:
@@ -175,6 +175,7 @@ class TransformerDecoder(Decoder):
 
     :param config: Transformer configuration.
     :param embed_weight: Optionally use an existing embedding matrix instead of creating a new target embedding.
+    :param prefix: Name prefix for symbols of this decoder.
     """
 
     def __init__(self,
@@ -896,18 +897,16 @@ class ConvolutionalDecoderConfig(Config):
     """
     Convolutional decoder configuration.
 
-    #TODO: make sure documentation matches ...
-
+    :param cnn_config: Configuration for the convolution block.
     :param vocab_size: Target vocabulary size.
-    :param max_seq_len_source: Maximum source sequence length
+    :param max_seq_len_target: Maximum target sequence length.
     :param num_embed: Target word embedding size.
     :param encoder_num_hidden: Number of hidden units of the encoder.
+    :param num_layers: The number of convolutional layers.
+    :param weight_tying: Whether to share embedding and prediction parameter matrices.
     :param embed_dropout: Dropout probability for target embeddings.
     :param hidden_dropout: Dropout probability on next decoder hidden state.
-    :param weight_tying: Whether to share embedding and prediction parameter matrices.
     """
-
-    # TODO: weight_tying is not used anywhere
 
     def __init__(self,
                  cnn_config: convolution.ConvolutionConfig,
@@ -916,6 +915,7 @@ class ConvolutionalDecoderConfig(Config):
                  num_embed: int,
                  encoder_num_hidden: int,
                  num_layers: int,
+                 weight_tying: bool,
                  embed_dropout: float = .0,
                  hidden_dropout: float = .0) -> None:
         super().__init__()
@@ -924,9 +924,10 @@ class ConvolutionalDecoderConfig(Config):
         self.max_seq_len_target = max_seq_len_target
         self.num_embed = num_embed
         self.encoder_num_hidden = encoder_num_hidden
+        self.num_layers = num_layers
+        self.weight_tying = weight_tying
         self.embed_dropout = embed_dropout
         self.hidden_dropout = hidden_dropout
-        self.num_layers = num_layers
 
 
 class ConvolutionalDecoder(Decoder):
@@ -941,18 +942,25 @@ class ConvolutionalDecoder(Decoder):
      * the code version has more GLUs than reported in the paper.
 
     :param config: Configuration for convolutional decoder.
+    :param embed_weight: Optionally use an existing embedding matrix instead of creating a new target embedding.
     :param prefix: Name prefix for symbols of this decoder.
     """
     def __init__(self,
                  config: ConvolutionalDecoderConfig,
+                 embed_weight: Optional[mx.sym.Symbol] = None,
                  prefix: str = C.DECODER_PREFIX) -> None:
         # TODO: add dropout..
         self.config = config
         self.convolution_weight = mx.sym.Variable("%sconvolution_weight" % prefix)
         self.convolution_bias = mx.sym.Variable("%sconvolution_bias" % prefix)
+
+        if embed_weight is None:
+            embed_weight = mx.sym.Variable(C.TARGET_EMBEDDING_PREFIX + "weight")
+
         self.embedding = encoder.Embedding(self.config.num_embed,
                                            self.config.vocab_size,
                                            prefix=C.TARGET_EMBEDDING_PREFIX,
+                                           embed_weight=embed_weight,
                                            dropout=config.embed_dropout)
         self.pos_embedding = encoder.AdditivePositionalEmbedding(num_embed=config.num_embed,
                                                                  max_seq_len=config.max_seq_len_target,
@@ -965,8 +973,14 @@ class ConvolutionalDecoder(Decoder):
 
         self.i2h_weight = mx.sym.Variable('%si2h_weight' % prefix)
 
-        # TODO: weight tying? lexicon and all other features the RNN supports?!
-        self.cls_w = mx.sym.Variable("%scls_weight" % prefix)
+        if self.config.weight_tying:
+            check_condition(self.config.cnn_config.num_hidden == self.config.num_embed,
+                            "Weight tying requires target embedding size and decoder hidden size to be equal")
+
+            logger.info("Tying the target embeddings and prediction matrix.")
+            self.cls_w = embed_weight
+        else:
+            self.cls_w = mx.sym.Variable("%scls_weight" % prefix)
         self.cls_b = mx.sym.Variable("%scls_bias" % prefix)
 
     def decode_sequence(self,
@@ -993,7 +1007,7 @@ class ConvolutionalDecoder(Decoder):
         :return: Logits of next-word predictions for target sequence.
                  Shape: (batch_size * target_max_length, target_vocab_size)
         """
-        # TODO: how to add the source embeddings to source_encoded?
+        # TODO: how to add the source embeddings to source_encoded? -> just document the differences for now
 
         # (batch_size, source_encoded_max_length, encoder_depth).
         source_encoded_batch_major = mx.sym.swapaxes(source_encoded, dim1=0, dim2=1, name='source_encoded_batch_major')

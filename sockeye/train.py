@@ -325,6 +325,7 @@ def main():
                                                                 num_embed=num_embed_target,
                                                                 encoder_num_hidden=encoder_num_hidden,
                                                                 num_layers=decoder_num_layers,
+                                                                weight_tying=decoder_weight_tying,
                                                                 embed_dropout=decoder_embed_dropout,
                                                                 hidden_dropout=args.rnn_decoder_hidden_dropout)
         else:
