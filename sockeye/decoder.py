@@ -896,6 +896,8 @@ class ConvolutionalDecoderConfig(Config):
     """
     Convolutional decoder configuration.
 
+    #TODO: make sure documentation matches ...
+
     :param vocab_size: Target vocabulary size.
     :param max_seq_len_source: Maximum source sequence length
     :param num_embed: Target word embedding size.
@@ -961,7 +963,7 @@ class ConvolutionalDecoder(Decoder):
             pad_type='left',
             prefix="%s%d_" % (prefix, i)) for i in range(config.num_layers)]
 
-        self.residual_linear_weights = mx.sym.Variable('%sresidual_linear_weight' % prefix)
+        self.i2h_weight = mx.sym.Variable('%si2h_weight' % prefix)
 
         # TODO: weight tying? lexicon and all other features the RNN supports?!
         self.cls_w = mx.sym.Variable("%scls_weight" % prefix)
@@ -992,8 +994,6 @@ class ConvolutionalDecoder(Decoder):
                  Shape: (batch_size * target_max_length, target_vocab_size)
         """
         # TODO: how to add the source embeddings to source_encoded?
-
-        # TODO: potentially project the source_encoded (if different source num_hidden)
 
         # (batch_size, source_encoded_max_length, encoder_depth).
         source_encoded_batch_major = mx.sym.swapaxes(source_encoded, dim1=0, dim2=1, name='source_encoded_batch_major')
@@ -1091,7 +1091,7 @@ class ConvolutionalDecoder(Decoder):
         target_hidden = mx.sym.FullyConnected(data=target_hidden,
                                               num_hidden=self.config.cnn_config.num_hidden,
                                               no_bias=True,
-                                              weight=self.residual_linear_weights)
+                                              weight=self.i2h_weight)
         # re-arrange outcoming layer to the dimensions of the output
         target_hidden = mx.sym.reshape(target_hidden, shape=(-1, target_max_length, self.config.cnn_config.num_hidden))
         target_hidden_prev = target_hidden
