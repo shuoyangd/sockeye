@@ -114,6 +114,14 @@ DECODER_PREFIX = "decoder_"
 CONVOLUTIONAL_DECODER_PREFIX = "convolutional_decoder_"
 TRANSFORMER_DECODER_PREFIX = DECODER_PREFIX + "transformer_"
 
+# Activation types
+GLU = "glu"
+RELU = "relu"
+SOFT_RELU = "softrelu"
+SIGMOID = "sigmoid"
+TANH = "tanh"
+CNN_ACTIVATION_TYPES = [GLU, RELU, SOFT_RELU, SIGMOID, TANH]
+
 # default I/O variable names
 SOURCE_NAME = "source"
 SOURCE_LENGTH_NAME = "source_length"

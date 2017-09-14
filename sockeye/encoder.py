@@ -10,7 +10,7 @@
 # an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
-from sockeye.convolution import ConvolutionGluBlock
+from sockeye.convolution import ConvolutionBlock
 
 """
 Encoders for sequence-to-sequence models.
@@ -88,7 +88,7 @@ class ConvolutionalEncoderConfig(Config):
                  num_embed: int,
                  embed_dropout: float,
                  max_seq_len_source: int,
-                 cnn_config: convolution.ConvolutionGluConfig,
+                 cnn_config: convolution.ConvolutionConfig,
                  num_layers: int):
         super().__init__()
         self.vocab_size = vocab_size
@@ -627,7 +627,7 @@ class ConvolutionalEncoder(Encoder):
 
         # initialize the layers of blocks containing a convolution and a GLU, since
         # every layer is shared over all encode calls
-        self.layers = [ConvolutionGluBlock(
+        self.layers = [ConvolutionBlock(
             config.cnn_config,
             pad_type='centered',
             prefix="%s%d_" % (prefix, i)) for i in range(config.num_layers)]

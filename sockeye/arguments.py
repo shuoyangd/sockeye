@@ -281,6 +281,10 @@ def add_model_parameters(params):
                               default=512,
                               help='Number of hidden units for the convolutional encoder and decoder. '
                                    'Default: %(default)s.')
+    model_params.add_argument('--cnn-activation-type',
+                              choices=C.CNN_ACTIVATION_TYPES,
+                              default=C.GLU,
+                              help="Type activation to use for each convolutional layer. Default: %(default)s.")
 
     # rnn arguments
     model_params.add_argument('--rnn-cell-type',

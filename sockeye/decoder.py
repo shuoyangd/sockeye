@@ -910,7 +910,7 @@ class ConvolutionalDecoderConfig(Config):
     # TODO: weight_tying is not used anywhere
 
     def __init__(self,
-                 cnn_config: convolution.ConvolutionGluConfig,
+                 cnn_config: convolution.ConvolutionConfig,
                  vocab_size: int,
                  max_seq_len_target: int,
                  num_embed: int,
@@ -958,7 +958,7 @@ class ConvolutionalDecoder(Decoder):
                                                                  max_seq_len=config.max_seq_len_target,
                                                                  prefix=C.TARGET_POSITIONAL_EMBEDDING_PREFIX)
 
-        self.layers = [convolution.ConvolutionGluBlock(
+        self.layers = [convolution.ConvolutionBlock(
             config.cnn_config,
             pad_type='left',
             prefix="%s%d_" % (prefix, i)) for i in range(config.num_layers)]

@@ -16,38 +16,44 @@ Convolutional layers.
 """
 from sockeye.config import Config
 from . import utils
+from . import constants as C
 
 import mxnet as mx
 
 
-class ConvolutionGluConfig(Config):
+class ConvolutionConfig(Config):
     """
     Configuration for a stack of convolutions with Gated Linear Units between layers, similar to Gehring et al. 2017.
 
     :param kernel_width: Kernel size for 1D convolution.
     :param num_hidden: Size of hidden representation after convolution.
+    :param act_type: The type of activation to use.
     """
     def __init__(self,
                  kernel_width: int,
-                 num_hidden: int):
+                 num_hidden: int,
+                 act_type: str=C.GLU):
         super().__init__()
         self.kernel_width = kernel_width
         self.num_hidden = num_hidden
+        utils.check_condition(act_type in C.CNN_ACTIVATION_TYPES, "Unknown activation %s." % act_type)
+        self.act_type = act_type
 
 
-class ConvolutionGluBlock:
+class ConvolutionBlock:
     """
     A Convolution-GLU block consists of the 2 following sublayers:
-    1. Convolution
-    2. GLU
+    1. Dropout (optional)
+    1. A Convolution (padded either both to the left and to the right or just to the left).
+    2. An activation: Either a Gated Linear Unit or any other activation supported by MXNet.
 
-    :param config: Configuration for Convolutional-GLU block.
+    :param config: Configuration for Convolution block.
     :param pad_type: 'left' or 'centered'. 'left' only pads to the left (for decoding
     the target sequence). 'centered' pads on both sides (for encoding the source sequence).
-    :param prefix: Name prefix for symbols of this Convolution-GLU block.
+    :param prefix: Name prefix for symbols of this block.
     """
     def __init__(self,
-                 config: ConvolutionGluConfig,
+                 config: ConvolutionConfig,
                  pad_type: str,
                  prefix: str) -> None:
         self.prefix = prefix
@@ -65,8 +71,7 @@ class ConvolutionGluBlock:
         :param seq_len: Maximum sequence length.
         :return: Symbol(batch_size, seq_len, num_hidden)
         """
-        # TODO: dropout?
-        # TODO: different types of activations?
+        # TODO: add dropout
 
         if self.pad_type == 'left':
             # we pad enough on both sides and later slice the extra padding from the right
@@ -78,12 +83,19 @@ class ConvolutionGluBlock:
             padding = (int((self.config.kernel_width - 1)/2),)
         else:
             raise ValueError("Unknown pad type %s" % self.pad_type)
+
+        if self.config.act_type == "glu":
+            num_hidden = 2 * self.config.num_hidden
+        else:
+            num_hidden = self.config.num_hidden
+
         # Apply masking (so that we properly have zero padding for variable sequence length batches)
         # Note: SequenceMask expects time-major data
         # (seq_len, batch_size, num_hidden)
         data = mx.sym.swapaxes(data, dim1=0, dim2=1)
         data = mx.sym.SequenceMask(data=data, sequence_length=data_length, use_sequence_length=True, value=0)
-        #TODO: better to transpose or to set the layout in the convolution?
+
+        #TODO: better to transpose or to set the layout in the convolution? Do a speed comparison...
         # (batch_size,  num_hidden, seq_len)
         data = mx.sym.transpose(data, axes=(1, 2, 0))
         data_conv = mx.sym.Convolution(data=data,
@@ -91,19 +103,24 @@ class ConvolutionGluBlock:
                                        bias=self.conv_bias,
                                        pad=padding,
                                        kernel=(self.config.kernel_width,),
-                                       num_filter=2 * self.config.num_hidden,
+                                       num_filter=num_hidden,
                                        layout="NCW")
 
         # (batch_size, 2 * num_hidden, seq_len)
         if self.pad_type == 'left':
             data_conv = mx.sym.slice_axis(data=data_conv, axis=2, begin=0, end=seq_len)
 
-        # GLU
-        # two times: (batch_size, num_hidden, seq_len)
-        gate_a, gate_b = mx.sym.split(data_conv, num_outputs=2, axis=1)
-        # (batch_size, num_hidden, seq_len)
-        block_output = mx.sym.broadcast_mul(gate_a,
-                                            mx.sym.Activation(data=gate_b, act_type="sigmoid"))
+        if self.config.act_type == "glu":
+            # GLU
+            # two times: (batch_size, num_hidden, seq_len)
+            gate_a, gate_b = mx.sym.split(data_conv, num_outputs=2, axis=1)
+            # (batch_size, num_hidden, seq_len)
+            block_output = mx.sym.broadcast_mul(gate_a,
+                                                mx.sym.Activation(data=gate_b, act_type="sigmoid"))
+        else:
+            # (batch_size, num_hidden, seq_len)
+            block_output = mx.sym.Activation(data_conv, act_type=self.config.act_type)
+
         # (batch_size, seq_len, num_hidden)
         block_output = mx.sym.swapaxes(block_output, dim1=1, dim2=2)
         return block_output

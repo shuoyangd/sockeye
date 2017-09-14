@@ -270,8 +270,9 @@ def main():
             encoder_num_hidden = args.transformer_model_size
         elif args.encoder == C.CONVOLUTION_TYPE:
             encoder_num_hidden = args.cnn_num_hidden
-            cnn_config = convolution.ConvolutionGluConfig(kernel_width=cnn_kernel_width_encoder,
-                                                          num_hidden=args.cnn_num_hidden)
+            cnn_config = convolution.ConvolutionConfig(kernel_width=cnn_kernel_width_encoder,
+                                                       num_hidden=args.cnn_num_hidden,
+                                                       act_type=args.cnn_activation_type)
             config_encoder = encoder.ConvolutionalEncoderConfig(vocab_size=vocab_source_size,
                                                                 num_embed=num_embed_source,
                                                                 embed_dropout=encoder_embed_dropout,
@@ -315,8 +316,9 @@ def main():
                 postprocess_sequence=decoder_transformer_postprocess,
                 conv_config=None)
         elif args.decoder == C.CONVOLUTION_TYPE:
-            convolution_config = convolution.ConvolutionGluConfig(kernel_width=cnn_kernel_width_decoder,
-                                                                  num_hidden=args.cnn_num_hidden)
+            convolution_config = convolution.ConvolutionConfig(kernel_width=cnn_kernel_width_decoder,
+                                                               num_hidden=args.cnn_num_hidden,
+                                                               act_type=args.cnn_activation_type)
             config_decoder = decoder.ConvolutionalDecoderConfig(cnn_config=convolution_config,
                                                                 vocab_size=vocab_target_size,
                                                                 max_seq_len_target=max_seq_len_target,
