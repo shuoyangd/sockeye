@@ -952,10 +952,10 @@ class ConvolutionalDecoder(Decoder):
                                                                  max_seq_len=config.max_seq_len_target,
                                                                  prefix=C.TARGET_POSITIONAL_EMBEDDING_PREFIX)
 
-        #TODO: feed attention in from the outside
+        #TODO: use dot_attention
         self.attention = rnn_attention.DotAttention(input_previous_word=False,
                                                     # TODO: set them correctly. rnn_num_hidden = encoder num hidden, num_hidden = decoder_num_hidden
-                                                rnn_num_hidden=self.config.cnn_config.num_hidden,
+                                                    rnn_num_hidden=self.config.cnn_config.num_hidden,
                                                     num_hidden=self.config.cnn_config.num_hidden,
                                                     expand_query_dim=False)
         self.layers = [convolution.ConvolutionGluBlock(

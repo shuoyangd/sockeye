@@ -66,6 +66,7 @@ class ConvolutionGluBlock:
         :return: Symbol(batch_size, seq_len, num_hidden)
         """
         # TODO: dropout?
+        # TODO: different types of activations?
 
         if self.pad_type == 'left':
             # we pad enough on both sides and later slice the extra padding from the right
