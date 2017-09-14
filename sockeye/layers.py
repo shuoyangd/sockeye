@@ -142,7 +142,7 @@ def dot_attention(queries: mx.sym.Symbol,
     :param queries: Attention queries. Shape: (n, lq, d).
     :param keys: Attention keys. Shape: (n, lk, d).
     :param values: Attention values. Shape: (n, lk, dv).
-    :param length: Sequence lengths. Shape: (n,).
+    :param length: Sequence lengths of the keys. Shape: (n,).
     :param dropout: Dropout probability.
     :param bias: Optional bias tensor. Shape: (1, lq, lk).
     :return: 'Context' vectors for each query. Shape: (n, lq, dv).
