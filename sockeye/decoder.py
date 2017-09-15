@@ -957,8 +957,6 @@ class ConvolutionalDecoder(Decoder):
                  embed_weight: Optional[mx.sym.Symbol] = None,
                  prefix: str = C.DECODER_PREFIX) -> None:
         self.config = config
-        self.convolution_weight = mx.sym.Variable("%sconvolution_weight" % prefix)
-        self.convolution_bias = mx.sym.Variable("%sconvolution_bias" % prefix)
 
         if embed_weight is None:
             embed_weight = mx.sym.Variable(C.TARGET_EMBEDDING_PREFIX + "weight")

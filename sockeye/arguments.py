@@ -274,7 +274,7 @@ def add_model_parameters(params):
     # convolutional encoder/decoder arguments arguments
     model_params.add_argument('--cnn-kernel-width',
                               type=multiple_values(num_values=2, greater_or_equal=1, data_type=int),
-                              default=(3, 3),
+                              default=(3, 5),
                               help='Kernel width of the convolutional encoder and decoder. Default: %(default)s.')
     model_params.add_argument('--cnn-num-hidden',
                               type=int_greater_or_equal(1),
