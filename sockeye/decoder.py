@@ -541,7 +541,8 @@ class RecurrentDecoder(Decoder):
 
         # get recurrent attention function conditioned on source
         source_encoded_batch_major = mx.sym.swapaxes(source_encoded, dim1=0, dim2=1, name='source_encoded_batch_major')
-        attention_func = self.attention.on(source_encoded_batch_major, source_encoded_lengths, source_encoded_max_length)
+        attention_func = self.attention.on(source_encoded_batch_major, source_encoded_lengths,
+                                           source_encoded_max_length)
         attention_state = self.attention.get_initial_state(source_encoded_lengths, source_encoded_max_length)
 
         # initialize decoder states
@@ -718,8 +719,8 @@ class RecurrentDecoder(Decoder):
                [mx.io.DataDesc("%senc2decinit_%d" % (self.prefix, i),
                                (batch_size, num_hidden),
                                layout=C.BATCH_MAJOR) for i, (_, num_hidden) in enumerate(
-                                   sum([rnn.state_shape for rnn in self.get_rnn_cells()], [])
-                               )]
+                   sum([rnn.state_shape for rnn in self.get_rnn_cells()], [])
+               )]
 
     def get_rnn_cells(self) -> List[mx.rnn.BaseRNNCell]:
         """
@@ -867,7 +868,7 @@ class RecurrentDecoder(Decoder):
                                      num_hidden=self.num_hidden,
                                      weight=self.gate_w,
                                      bias=self.gate_b,
-                                     name = '%shidden_gate_t%d' % (self.prefix, seq_idx))
+                                     name='%shidden_gate_t%d' % (self.prefix, seq_idx))
         gate = mx.sym.Activation(data=gate, act_type="sigmoid",
                                  name='%shidden_gate_act_t%d' % (self.prefix, seq_idx))
 
@@ -935,21 +936,23 @@ class ConvolutionalDecoder(Decoder):
     Convolutional decoder similar to Gehring et al. 2017.
 
     The decoder consists of an embedding layer, positional embeddings, and layers
-    of Convolution-GLU blocks with residual connections.
+    of convolutional blocks with residual connections.
 
-    Noteable differences:
-     * key/value attention ...
-     * the code version has more GLUs than reported in the paper.
+    Noteable differences to Gehring et al. 2017:
+     * The context vectors are created from the last encoder state (instead of using the last encoder state as the key
+       and the sum of the last encoder state and the source embedding as the value)
+     * the github version (unlike the paper) has a GLU on the input and two GLUs on the output of the convolutional
+       block. Here we just have a single activation function after the convolution as that seems cleaner.
 
     :param config: Configuration for convolutional decoder.
     :param embed_weight: Optionally use an existing embedding matrix instead of creating a new target embedding.
     :param prefix: Name prefix for symbols of this decoder.
     """
+
     def __init__(self,
                  config: ConvolutionalDecoderConfig,
                  embed_weight: Optional[mx.sym.Symbol] = None,
                  prefix: str = C.DECODER_PREFIX) -> None:
-        # TODO: add dropout..
         self.config = config
         self.convolution_weight = mx.sym.Variable("%sconvolution_weight" % prefix)
         self.convolution_bias = mx.sym.Variable("%sconvolution_bias" % prefix)
@@ -1069,7 +1072,7 @@ class ConvolutionalDecoder(Decoder):
 
         # (batch_size, vocab_size)
         logits = mx.sym.FullyConnected(data=target_hidden, num_hidden=self.config.vocab_size,
-            weight=self.cls_w, bias=self.cls_b, name=C.LOGITS_NAME)
+                                       weight=self.cls_w, bias=self.cls_b, name=C.LOGITS_NAME)
 
         # (batch_size, encoded_max_length)
         attention_probs = mx.sym.sum(mx.sym.zeros_like(source_encoded), axis=2, keepdims=False)
@@ -1100,7 +1103,6 @@ class ConvolutionalDecoder(Decoder):
                                                                                     target_lengths,
                                                                                     target_max_length)
 
-
         target_hidden = mx.sym.reshape(target_embed, shape=(-3, -1))
         target_hidden = mx.sym.FullyConnected(data=target_hidden,
                                               num_hidden=self.config.cnn_config.num_hidden,
@@ -1110,16 +1112,19 @@ class ConvolutionalDecoder(Decoder):
         target_hidden = mx.sym.reshape(target_hidden, shape=(-1, target_max_length, self.config.cnn_config.num_hidden))
         target_hidden_prev = target_hidden
 
+        drop_prob = self.config.hidden_dropout
+
         for layer in self.layers:
             # (batch_size, target_seq_len, num_hidden)
-            target_hidden = layer(target_hidden, target_lengths, target_max_length)
+            target_hidden = layer(mx.sym.Dropout(target_hidden, p=drop_prob) if drop_prob > 0 else target_hidden,
+                                  target_lengths, target_max_length)
 
             # (batch_size, target_seq_len, num_embed)
-            # TODO: optionally add dropout...
             context = layers.dot_attention(queries=target_hidden,
                                            keys=source_encoded, values=source_encoded,
                                            length=source_encoded_lengths)
 
+            # residual connection:
             target_hidden = target_hidden_prev + target_hidden + context
             target_hidden_prev = target_hidden
 
@@ -1150,7 +1155,7 @@ class ConvolutionalDecoder(Decoder):
         :return: List of symbolic variables.
         """
         return [mx.sym.Variable(C.SOURCE_ENCODED_NAME),
-        mx.sym.Variable(C.SOURCE_LENGTH_NAME)]
+                mx.sym.Variable(C.SOURCE_LENGTH_NAME)]
 
     def state_shapes(self,
                      batch_size: int,
@@ -1177,5 +1182,3 @@ class ConvolutionalDecoder(Decoder):
         :raises: NotImplementedError
         """
         return []
-
-

@@ -327,7 +327,7 @@ def main():
                                                                 num_layers=decoder_num_layers,
                                                                 weight_tying=decoder_weight_tying,
                                                                 embed_dropout=decoder_embed_dropout,
-                                                                hidden_dropout=args.rnn_decoder_hidden_dropout)
+                                                                hidden_dropout=args.cnn_hidden_dropout)
         else:
             rnn_attention_num_hidden = args.rnn_num_hidden if not args.rnn_attention_num_hidden else args.rnn_attention_num_hidden
             config_coverage = None
