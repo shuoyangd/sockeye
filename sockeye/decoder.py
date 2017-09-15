@@ -920,6 +920,9 @@ class ConvolutionalDecoderConfig(Config):
                  embed_dropout: float = .0,
                  hidden_dropout: float = .0) -> None:
         super().__init__()
+        if embed_dropout > 0 and hidden_dropout > 0:
+            logger.warning("Setting cnn encoder dropout AND hidden dropout > 0 leads to "
+                           "two dropout layers on top of each other.")
         self.cnn_config = cnn_config
         self.vocab_size = vocab_size
         self.max_seq_len_target = max_seq_len_target

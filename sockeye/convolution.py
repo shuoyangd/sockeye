@@ -49,7 +49,7 @@ class ConvolutionBlock:
 
     :param config: Configuration for Convolution block.
     :param pad_type: 'left' or 'centered'. 'left' only pads to the left (for decoding
-    the target sequence). 'centered' pads on both sides (for encoding the source sequence).
+           the target sequence). 'centered' pads on both sides (for encoding the source sequence).
     :param prefix: Name prefix for symbols of this block.
     """
     def __init__(self,
@@ -71,8 +71,6 @@ class ConvolutionBlock:
         :param seq_len: Maximum sequence length.
         :return: Symbol(batch_size, seq_len, num_hidden)
         """
-        # TODO: add dropout
-
         if self.pad_type == 'left':
             # we pad enough on both sides and later slice the extra padding from the right
             padding = (self.config.kernel_width - 1,)
@@ -118,6 +116,7 @@ class ConvolutionBlock:
             block_output = mx.sym.broadcast_mul(gate_a,
                                                 mx.sym.Activation(data=gate_b, act_type="sigmoid"))
         else:
+            #TODO: does it make sense to add layer normalization?
             # (batch_size, num_hidden, seq_len)
             block_output = mx.sym.Activation(data_conv, act_type=self.config.act_type)
 
