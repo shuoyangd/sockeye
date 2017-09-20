@@ -4,7 +4,10 @@
 
 This package contains the Sockeye project,
 a sequence-to-sequence framework for Neural Machine Translation based on Apache MXNet Incubating.
-It implements the well-known encoder-decoder architecture with attention.
+It implements the well-known encoder-decoder architecture for sequence-to-sequence tasks with variable lengths.
+Sockeye currently supports two major architectures:
+- Recurrent Neural Networks with attention
+- [Transformer](https://arxiv.org/abs/1706.03762) models with self-attention.
 
 If you are interested in collaborating or have any questions, please submit a pull request or issue.
 You can also send questions to *sockeye-dev-at-amazon-dot-com*.
@@ -13,7 +16,7 @@ You can also send questions to *sockeye-dev-at-amazon-dot-com*.
 
 Sockeye requires:
 - **Python3**
-- [MXNet-0.10.0](https://github.com/dmlc/mxnet/tree/v0.10.0)
+- [MXNet-0.11.0](https://github.com/apache/incubator-mxnet/tree/0.11.0)
 - numpy
 
 ## Installation
@@ -110,7 +113,8 @@ directly. For example *sockeye-train* can also be invoked as
 
 In order to train your first Neural Machine Translation model you will need two sets of parallel files: one for training 
 and one for validation. The latter will be used for computing various metrics during training. 
-Each set should consist of two files: one with source sentences and one with target sentences (translations). Both files should have the same number of lines, each line containing a single
+Each set should consist of two files: one with source sentences and one with target sentences (translations).
+Both files should have the same number of lines, each line containing a single
 sentence. Each sentence should be a whitespace delimited list of tokens.
 
 Say you wanted to train a German to English translation model, then you would call sockeye like this:
@@ -124,7 +128,7 @@ Say you wanted to train a German to English translation model, then you would ca
 ```
 
 After training the directory *<model_dir>* will contain all model artifacts such as parameters and model 
-configuration. 
+configuration. The default setting is to train a 1-layer LSTM model with attention.
 
 
 ### Translate
